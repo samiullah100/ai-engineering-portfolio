@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Al Islam Library Search</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --ink: #1d2328; --muted: #66707a; --line: #e2e0d8;
+    --accent: #1f6f5c; --accent-soft: #e3f0ec; --mark: #ffe58a; --danger: #a33a2b;
+    --urdu: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Geeza Pro", "Noto Naskh Arabic", serif;
+    --arabic: "Geeza Pro", "Noto Naskh Arabic", "Amiri", serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15191c; --card: #1e2428; --ink: #e7e9ea; --muted: #9aa4ad; --line: #30383e;
+            --accent: #5cc3a5; --accent-soft: #20352f; --mark: #6b5a12; --danger: #ef8a7a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 22px 24px 8px; max-width: 1100px; margin: 0 auto; display: flex;
+           align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 21px; font-weight: 650; }
+  header .stats { color: var(--muted); font-size: 13px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 8px 24px 60px; }
+
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; padding: 3px; gap: 3px;
+          margin-bottom: 14px; background: var(--bg); }
+  .tabs button { border: 0; background: transparent; color: var(--muted); padding: 7px 14px; border-radius: 7px;
+                 font: inherit; font-weight: 550; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  .tab-hint { color: var(--muted); font-size: 13px; margin: -6px 0 12px; }
+
+  .query-row { display: flex; gap: 10px; }
+  #query { flex: 1; font: inherit; font-size: 17px; padding: 11px 13px; border: 1px solid var(--line);
+           border-radius: 9px; background: var(--card); color: var(--ink); min-width: 0; }
+  #query:focus, select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #query:dir(rtl) { font-family: var(--urdu); line-height: 2; }
+  .primary { background: var(--accent); color: #fff; border: 0; border-radius: 9px; padding: 0 20px;
+             font: inherit; font-weight: 600; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { .primary { color: #0d1f1a; } }
+  .primary:disabled { opacity: .55; cursor: progress; }
+
+  .options { display: flex; flex-wrap: wrap; gap: 12px 18px; margin-top: 14px; align-items: end; }
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+  .field select, .field input { font: inherit; font-size: 14px; color: var(--ink); background: var(--card);
+                                border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; }
+  #category { max-width: 260px; }
+  #bookInput { width: 260px; }
+  .radio-group { display: inline-flex; gap: 12px; font-size: 14px; color: var(--ink); padding: 6px 0; }
+  .radio-group label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 3px 6px 3px 11px;
+          font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+  .chip button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 15px;
+                 line-height: 1; padding: 0 4px; }
+  .lexical-only, .semantic-only { display: contents; }
+  body[data-tab="semantic"] .lexical-only, body[data-tab="lexical"] .semantic-only { display: none; }
+
+  #status { margin: 18px 2px 10px; color: var(--muted); font-size: 13.5px; min-height: 20px; }
+  #status.error { color: var(--danger); }
+  .hit { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+         margin-bottom: 12px; }
+  .hit-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin-bottom: 8px; }
+  .hit-num { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .hit-book { font-weight: 620; color: var(--ink); text-decoration: none; }
+  .hit-book:hover { text-decoration: underline; }
+  .hit-page { color: var(--muted); font-size: 13.5px; }
+  .hit-cat { font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+             padding: 1px 9px; color: var(--muted); cursor: pointer; }
+  .hit-cat:hover { color: var(--ink); }
+  .score { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px;
+           color: var(--muted); font-variant-numeric: tabular-nums; }
+  .score .bar { width: 70px; height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .score .bar span { display: block; height: 100%; background: var(--accent); }
+  .hit-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .hit-text.clamped { max-height: 13.5em; overflow: hidden;
+                      -webkit-mask-image: linear-gradient(#000 70%, transparent);
+                              mask-image: linear-gradient(#000 70%, transparent); }
+  .hit-text[dir="rtl"] { font-family: var(--urdu); font-size: 17px; line-height: 2.3; }
+  .hit-text[dir="rtl"].clamped { max-height: 18em; }
+  .hit-text[dir="rtl"][lang="ar"] { font-family: var(--arabic); line-height: 1.9; }
+  .excerpt { display: block; padding: 2px 0; }
+  .excerpt + .excerpt { border-top: 1px dashed var(--line); margin-top: 4px; padding-top: 6px; }
+  mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 3px; }
+  .hit-actions { margin-top: 8px; display: flex; gap: 14px; }
+  .link-btn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-size: 13.5px;
+              cursor: pointer; }
+  .link-btn:hover { text-decoration: underline; }
+  #more { display: none; margin: 6px auto 0; }
+  .secondary { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 9px;
+               padding: 9px 18px; font: inherit; cursor: pointer; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+</style>
+</head>
+<body data-tab="semantic">
+<header>
+  <h1>Al Islam Library Search</h1>
+  <span class="stats" id="stats">Loading…</span>
+</header>
+<main>
+  <form class="panel" id="form" autocomplete="off">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="semantic" aria-selected="true">Semantic</button>
+      <button type="button" role="tab" data-tab="lexical" aria-selected="false">Word / sentence</button>
+    </div>
+    <p class="tab-hint semantic-only">Finds pages with a similar meaning, in any language. Ask a question or describe a topic.</p>
+    <p class="tab-hint lexical-only">Finds pages containing the exact text. Case and diacritics (زیر، زبر) must match, so try with and without them.</p>
+
+    <div class="query-row">
+      <input id="query" type="search" dir="auto" placeholder="What is the purpose of Khilafat?" required>
+      <button class="primary" id="go" type="submit">Search</button>
+    </div>
+
+    <div class="options">
+      <div class="lexical-only">
+        <div class="field">Match
+          <div class="radio-group">
+            <label><input type="radio" name="mode" value="sentence" checked> Exact phrase</label>
+            <label><input type="radio" name="mode" value="word"> All words, any order</label>
+          </div>
+        </div>
+      </div>
+      <div class="field">Category
+        <select id="category"><option value="">All categories</option></select>
+      </div>
+      <div class="field">Book
+        <input id="bookInput" list="bookList" placeholder="Type a book name…">
+        <datalist id="bookList"></datalist>
+      </div>
+      <div class="field">Language
+        <select id="language"><option value="">All</option></select>
+      </div>
+      <div class="field">Results
+        <select id="count">
+          <option>10</option><option selected>20</option><option>50</option><option>100</option>
+        </select>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+  </form>
+
+  <div id="status"></div>
+  <div id="results"></div>
+  <button class="secondary" id="more" type="button">Load more</button>
+</main>
+
+<script>
+const LANG_NAMES = { en: "English", ur: "Urdu", ar: "Arabic", fa: "Persian", de: "German", fr: "French",
+  es: "Spanish", id: "Indonesian", sw: "Swahili", bn: "Bengali", hi: "Hindi", pa: "Punjabi", tr: "Turkish",
+  arabic: "Arabic (second tag)", ru: "Russian", zh: "Chinese", ja: "Japanese", it: "Italian", pt: "Portuguese", nl: "Dutch" };
+const ARABIC_SCRIPT = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/g;
+const LATIN = /[A-Za-z]/g;
+
+const $ = (id) => document.getElementById(id);
+const state = { tab: "semantic", books: [], byLabel: new Map(), selectedBooks: [], hits: [], offset: 0, last: null };
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* Same matching as the notebook: exact substrings, spans merged. */
+function matchSpans(text, query, mode) {
+  const terms = mode === "sentence" ? [query] : query.split(/\s+/).filter(Boolean);
+  const spans = [];
+  for (const term of terms) {
+    let i = text.indexOf(term);
+    while (i !== -1) { spans.push([i, i + term.length]); i = text.indexOf(term, i + 1); }
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const s of spans) {
+    const last = merged[merged.length - 1];
+    if (last && s[0] <= last[1]) last[1] = Math.max(last[1], s[1]); else merged.push([...s]);
+  }
+  return merged;
+}
+
+function highlight(text, spans, from = 0, to = text.length) {
+  let out = "", pos = from;
+  for (const [s, e] of spans) {
+    if (e <= from || s >= to) continue;
+    const a = Math.max(s, from), b = Math.min(e, to);
+    out += escapeHtml(text.slice(pos, a)) + "<mark>" + escapeHtml(text.slice(a, b)) + "</mark>";
+    pos = b;
+  }
+  return out + escapeHtml(text.slice(pos, to));
+}
+
+/* Short passages around the matches, for the collapsed view of a lexical hit. */
+function excerpts(text, spans, radius = 220, maxParts = 3) {
+  const windows = [];
+  for (const [s, e] of spans) {
+    const a = Math.max(0, s - radius), b = Math.min(text.length, e + radius);
+    const last = windows[windows.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b); else windows.push([a, b]);
+  }
+  return windows.slice(0, maxParts).map(([a, b]) =>
+    `<span class="excerpt">${a > 0 ? "… " : ""}${highlight(text, spans, a, b)}${b < text.length ? " …" : ""}</span>`
+  ).join("");
+}
+
+function direction(text, lang) {
+  if (["ur", "ar", "fa"].includes(lang)) return "rtl";
+  return (text.match(ARABIC_SCRIPT) || []).length > (text.match(LATIN) || []).length ? "rtl" : "ltr";
+}
+
+function setTab(tab) {
+  state.tab = tab;
+  document.body.dataset.tab = tab;
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  $("query").placeholder = tab === "semantic" ? "What is the purpose of Khilafat?" : "وفات مسیح";
+  $("query").focus();
+  if ($("query").value.trim()) search();
+}
+
+function renderChips() {
+  $("chips").innerHTML = state.selectedBooks.map((b, i) =>
+    `<span class="chip">${escapeHtml(b.name)}<button type="button" data-i="${i}" aria-label="Remove">×</button></span>`
+  ).join("");
+}
+
+function currentRequest() {
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  return {
+    tab: state.tab,
+    body: {
+      query: $("query").value.trim(),
+      category: $("category").value || null,
+      language: $("language").value || null,
+      book_ids: state.selectedBooks.length ? state.selectedBooks.map((b) => b.id) : null,
+      ...(state.tab === "semantic" ? { k: +$("count").value } : { mode, limit: +$("count").value }),
+    },
+  };
+}
+
+async function search(append = false) {
+  const req = append ? state.last : currentRequest();
+  if (!req.body.query) return;
+  if (!append) { state.hits = []; state.offset = 0; state.last = req; $("results").innerHTML = ""; }
+  const body = req.tab === "lexical" ? { ...req.body, offset: state.offset } : req.body;
+  $("go").disabled = true; $("more").style.display = "none";
+  $("status").className = ""; $("status").textContent = "Searching…";
+  try {
+    const res = await fetch(`/api/${req.tab}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : res.statusText);
+    const start = state.hits.length;
+    state.hits.push(...data.hits);
+    state.offset += data.hits.length;
+    renderHits(req, start);
+    const noun = req.tab === "semantic" ? "most similar pages" : (state.hits.length === 1 ? "page" : "pages");
+    $("status").textContent = state.hits.length
+      ? `${state.hits.length}${data.more ? "+" : ""} ${noun} · ${data.seconds}s`
+      : "";
+    $("more").style.display = data.more ? "block" : "none";
+  } catch (err) {
+    $("status").className = "error";
+    $("status").textContent = "Search failed: " + err.message;
+  } finally {
+    $("go").disabled = false;
+  }
+}
+
+function renderHits(req, start) {
+  if (!state.hits.length) {
+    $("results").innerHTML = `<div class="empty">No pages found.${req.tab === "lexical"
+      ? " Try “All words”, fewer words, or the phrase without diacritics." : ""}</div>`;
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  state.hits.slice(start).forEach((hit, j) => {
+    const n = start + j + 1;
+    const dir = direction(hit.text, hit.language);
+    const spans = req.tab === "lexical" ? matchSpans(hit.text, req.body.query, req.body.mode) : [];
+    const el = document.createElement("article");
+    el.className = "hit";
+    const score = hit.score == null ? "" :
+      `<span class="score" title="Cosine similarity">${hit.score.toFixed(3)}<span class="bar"><span style="width:${Math.max(0, Math.min(1, hit.score)) * 100}%"></span></span></span>`;
+    el.innerHTML = `
+      <div class="hit-head">
+        <span class="hit-num">${n}.</span>
+        <a class="hit-book" href="${escapeHtml(hit.source || "#")}" target="_blank" rel="noopener">${escapeHtml(hit.book || hit.book_id)}</a>
+        <span class="hit-page">p. ${escapeHtml(String(hit.page ?? ""))}</span>
+        <span class="hit-cat" title="Search only this category">${escapeHtml(hit.category || "")}</span>
+        ${score}
+      </div>
+      <div class="hit-text" dir="${dir}" lang="${escapeHtml(hit.language || "")}"></div>
+      <div class="hit-actions">
+        <button type="button" class="link-btn toggle"></button>
+        <button type="button" class="link-btn copy">Copy reference</button>
+      </div>`;
+    const textEl = el.querySelector(".hit-text");
+    const toggle = el.querySelector(".toggle");
+    let expanded = false;
+    const draw = () => {
+      if (expanded) {
+        textEl.classList.remove("clamped");
+        textEl.innerHTML = highlight(hit.text, spans);
+        toggle.textContent = "Show less";
+      } else if (spans.length) {
+        textEl.classList.remove("clamped");
+        textEl.innerHTML = excerpts(hit.text, spans);
+        toggle.textContent = "Show full page";
+      } else {
+        textEl.classList.add("clamped");
+        textEl.innerHTML = highlight(hit.text, spans);
+        toggle.textContent = "Show full page";
+      }
+    };
+    draw();
+    toggle.onclick = () => { expanded = !expanded; draw(); };
+    el.querySelector(".copy").onclick = (e) => {
+      navigator.clipboard.writeText(`${hit.book}, p. ${hit.page} (${hit.category})`);
+      e.target.textContent = "Copied"; setTimeout(() => (e.target.textContent = "Copy reference"), 1200);
+    };
+    el.querySelector(".hit-cat").onclick = () => { $("category").value = hit.category; search(); };
+    frag.appendChild(el);
+  });
+  $("results").appendChild(frag);
+}
+
+async function init() {
+  try {
+    const meta = await (await fetch("/api/meta")).json();
+    state.books = meta.books;
+    $("stats").textContent = `${meta.pages.toLocaleString()} pages · ${meta.books.length.toLocaleString()} books · ${meta.categories.length} categories`;
+    $("category").insertAdjacentHTML("beforeend", meta.categories.map((c) =>
+      `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${c.pages.toLocaleString()})</option>`).join(""));
+    $("language").insertAdjacentHTML("beforeend", meta.languages.map((l) =>
+      `<option value="${escapeHtml(l.code)}">${escapeHtml(LANG_NAMES[l.code] || l.code)}</option>`).join(""));
+    const options = [];
+    for (const b of meta.books) {
+      const label = `${b.name} — ${b.category}`;
+      state.byLabel.set(label, b);
+      options.push(`<option value="${escapeHtml(label)}"></option>`);
+    }
+    $("bookList").innerHTML = options.join("");
+    if (!meta.semantic_available) {
+      $("status").className = "error";
+      $("status").textContent = "No GOOGLE_API_KEY found, so semantic search will fail; word/sentence search works.";
+    }
+  } catch (err) {
+    $("stats").textContent = "Could not reach the search server.";
+  }
+}
+
+$("form").addEventListener("submit", (e) => { e.preventDefault(); search(); });
+document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
+$("more").onclick = () => search(true);
+$("bookInput").addEventListener("change", () => {
+  const book = state.byLabel.get($("bookInput").value);
+  if (book && !state.selectedBooks.some((b) => b.id === book.id)) { state.selectedBooks.push(book); renderChips(); }
+  $("bookInput").value = "";
+});
+$("chips").addEventListener("click", (e) => {
+  if (e.target.dataset.i != null) { state.selectedBooks.splice(+e.target.dataset.i, 1); renderChips(); }
+});
+init();
+</script>
+</body>
+</html>
